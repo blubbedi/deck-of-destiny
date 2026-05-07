@@ -2,13 +2,15 @@
     position: fixed;
     bottom: 80px;
     left: 20px;
-    z-index: 100;
+    z-index: 9999;
+    pointer-events: auto; /* Zwingend erforderlich für Klicks */
     display: flex;
     gap: 15px;
     background: rgba(0, 0, 0, 0.5);
     padding: 10px;
     border-radius: 10px;
     border: 1px solid #444;
+    box-shadow: 0 0 10px black;
 }
 
 .destiny-icon {
@@ -16,6 +18,7 @@
     height: 50px;
     cursor: pointer;
     transition: transform 0.2s, filter 0.3s;
+    pointer-events: auto;
 }
 
 .destiny-icon img {
@@ -31,4 +34,5 @@
 .destiny-icon.depleted {
     filter: grayscale(1) brightness(0.4);
     cursor: default;
+    pointer-events: auto;
 }

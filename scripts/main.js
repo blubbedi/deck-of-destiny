@@ -11,7 +11,21 @@ Hooks.once('ready', async () => {
     if (game.user.isGM) {
         await ensureCompendiumFilled();
     }
+    // Das HUD direkt beim Einloggen laden
+    renderDestinyHUD();
 });
+
+// HUD aktualisieren, wenn Items erstellt, gelöscht oder geändert werden
+Hooks.on('updateItem', (item) => { 
+    if(item.name === "Beutel des Schicksals" || item.name === "Deck of Destiny") renderDestinyHUD(); 
+});
+Hooks.on('createItem', (item) => { 
+    if(item.name === "Beutel des Schicksals" || item.name === "Deck of Destiny") renderDestinyHUD(); 
+});
+Hooks.on('deleteItem', (item) => { 
+    if(item.name === "Beutel des Schicksals" || item.name === "Deck of Destiny") renderDestinyHUD(); 
+});
+Hooks.on('renderPlayerList', () => renderDestinyHUD());
 
 async function ensureCompendiumFilled() {
     const pack = game.packs.get(COMPENDIUM_NAME);
@@ -20,7 +34,6 @@ async function ensureCompendiumFilled() {
         return;
     }
 
-    // Kompendium entsperren, falls gesperrt
     const wasLocked = pack.locked;
     if (wasLocked) await pack.configure({locked: false});
 
@@ -111,7 +124,6 @@ async function ensureCompendiumFilled() {
     await checkAndCreateTable(POS_TABLE_NAME, positiveCards);
     await checkAndCreateTable(NEG_TABLE_NAME, negativeCards);
 
-    // Kompendium wieder sperren, wenn es vorher gesperrt war
     if (wasLocked) await pack.configure({locked: true});
 }
 
@@ -165,15 +177,16 @@ async function giveBagToActor(actorId) {
     ui.notifications.info(`${actor.name} hat den Beutel des Schicksals erhalten.`);
 }
 
-// HUD Rendering
-Hooks.on('renderPlayerList', () => {
-    renderDestinyHUD();
-});
-
 async function renderDestinyHUD() {
     const actor = game.user?.character;
-    if (!actor || !actor.items.find(i => i.name === "Beutel des Schicksals")) return;
+    
+    // Wenn kein Charakter gewählt ist oder er den Beutel nicht hat -> HUD entfernen
+    if (!actor || !actor.items.find(i => i.name === "Beutel des Schicksals")) {
+        $("#destiny-deck-hud").remove();
+        return;
+    }
 
+    // Altes HUD entfernen, bevor wir es neu zeichnen
     if ($("#destiny-deck-hud").length) $("#destiny-deck-hud").remove();
 
     const bag = actor.items.find(i => i.name === "Beutel des Schicksals");
@@ -192,10 +205,21 @@ async function renderDestinyHUD() {
             </div>` : ''}
         </div>`;
 
-    $('body').append(hudHtml);
+    // Sicher verankert am UI-Layer
+    $('#ui-bottom').append(hudHtml);
 
-    $("#use-bag").click(() => useBag(actor));
-    if (deck) $("#use-deck").click(() => useDeck(actor));
+    // Klick-Events sicher binden
+    $("#use-bag").on('click', function(e) {
+        e.preventDefault();
+        useBag(actor);
+    });
+    
+    if (deck) {
+        $("#use-deck").on('click', function(e) {
+            e.preventDefault();
+            useDeck(actor);
+        });
+    }
 }
 
 async function useBag(actor) {
@@ -225,7 +249,6 @@ async function useBag(actor) {
         };
         await actor.createEmbeddedDocuments("Item", [deckData]);
         
-        // Die 6 exakten Startkarten ziehen
         const startDeckList = [];
         const posDraw1 = await posTable.roll(); const posDraw2 = await posTable.roll(); const posDraw3 = await posTable.roll();
         const negDraw1 = await negTable.roll(); const negDraw2 = await negTable.roll(); const negDraw3 = await negTable.roll();
@@ -236,8 +259,7 @@ async function useBag(actor) {
         await actor.setFlag(MODULE_ID, 'activeDeck', startDeckList);
         await bag.update({"system.uses.value": 0});
         ChatMessage.create({ content: `<h3>Das Schicksal erwacht</h3><p>${actor.name} hat das erste Mal in den Beutel gegriffen. Das Deck of Destiny wurde erschaffen und enthält nun 6 Karten.</p>` });
-        renderDestinyHUD();
-        return;
+        return; // HUD updated automatisch durch Hooks
     }
 
     // Reguläre tägliche Ziehung (1 Pos, 2 Neg)
@@ -251,7 +273,6 @@ async function useBag(actor) {
 
     await bag.update({"system.uses.value": 0});
     ChatMessage.create({ content: `<h3>Schicksals-Ziehung</h3><p>${actor.name} zieht aus dem Beutel. 3 neue Karten wurden dem Deck of Destiny hinzugefügt.</p>` });
-    renderDestinyHUD();
 }
 
 async function useDeck(actor) {
@@ -274,5 +295,4 @@ async function useDeck(actor) {
                     <p style="color: #a3a3a3; font-style: italic; margin-top: 10px;">Die Karte zerfällt augenblicklich zu Asche.</p>
                   </div>`
     });
-    renderDestinyHUD();
 }
