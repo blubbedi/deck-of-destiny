@@ -1,0 +1,31 @@
+name: Release Foundry Module
+
+# Der Bot startet automatisch, wenn du einen "Tag" (eine Version wie v1.0.1) hochlädst
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    # Gibt dem Bot die Berechtigung, auf deinem GitHub etwas zu veröffentlichen
+    permissions:
+      contents: write 
+
+    steps:
+    - name: Code auschecken
+      uses: actions/checkout@v3
+
+    - name: ZIP-Datei erstellen
+      run: |
+        # Packt alles in eine ZIP, schließt aber die versteckten GitHub-Ordner aus
+        zip -r deck-of-destiny.zip . -x "*.git*" -x ".github/*"
+
+    - name: Release veröffentlichen
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          deck-of-destiny.zip
+          module.json
